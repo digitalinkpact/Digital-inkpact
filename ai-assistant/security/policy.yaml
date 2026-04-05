@@ -1,0 +1,225 @@
+# =============================================================================
+# AgentGuard Security Policy - Bid Processing Assistant
+#
+# This policy governs what the AI assistant is allowed to do on the system.
+# Three tiers: deny (always blocked), allow (always permitted), prompt (ask user).
+# =============================================================================
+
+version: 2
+name: "bid-assistant-policy"
+description: "Security policy for the Autonomous Bid Processing Assistant"
+
+# ---------------------------------------------------------------------------
+# DENY - These actions are ALWAYS blocked, no exceptions
+# ---------------------------------------------------------------------------
+deny:
+  commands:
+    # System destruction
+    - pattern: "rm -rf /"
+      reason: "Prevents recursive deletion of root filesystem"
+    - pattern: "rm -rf /*"
+      reason: "Prevents recursive deletion of root filesystem"
+    - pattern: "dd if=/dev/zero of=/dev/sd"
+      reason: "Prevents disk wiping"
+    - pattern: "mkfs\\."
+      reason: "Prevents filesystem formatting"
+    - pattern: ":(){:|:&};:"
+      reason: "Prevents fork bomb"
+
+    # Privilege escalation
+    - pattern: "^sudo\\b"
+      reason: "No root access allowed"
+    - pattern: "^su\\b"
+      reason: "No user switching allowed"
+    - pattern: "chmod 777"
+      reason: "World-writable permissions not allowed"
+    - pattern: "chown root"
+      reason: "Cannot change ownership to root"
+
+    # Package management (prevent system-level changes)
+    - pattern: "^apt\\b"
+      reason: "System package management not allowed"
+    - pattern: "^yum\\b"
+      reason: "System package management not allowed"
+    - pattern: "^dnf\\b"
+      reason: "System package management not allowed"
+
+    # Dangerous network commands
+    - pattern: "curl.*\\|.*sh"
+      reason: "Pipe-to-shell execution blocked"
+    - pattern: "wget.*\\|.*sh"
+      reason: "Pipe-to-shell execution blocked"
+    - pattern: "nc -l"
+      reason: "Netcat listeners blocked"
+
+  paths:
+    # SSH keys and credentials
+    - path: "~/.ssh/*"
+      reason: "SSH keys are sensitive"
+    - path: "~/.ssh"
+      reason: "SSH directory is sensitive"
+
+    # Cloud credentials
+    - path: "~/.aws/*"
+      reason: "AWS credentials are sensitive"
+    - path: "~/.config/gcloud/*"
+      reason: "GCP credentials are sensitive"
+    - path: "~/.azure/*"
+      reason: "Azure credentials are sensitive"
+
+    # Private keys
+    - path: "*.pem"
+      reason: "Private key files are sensitive"
+    - path: "*.key"
+      reason: "Private key files are sensitive"
+    - path: "*.p12"
+      reason: "Certificate files are sensitive"
+
+    # Environment files
+    - path: "**/.env"
+      reason: "Environment files may contain secrets"
+    - path: "**/.env.*"
+      reason: "Environment files may contain secrets"
+
+    # System directories
+    - path: "/etc/shadow"
+      reason: "Password file"
+    - path: "/etc/passwd"
+      reason: "User database"
+
+  network:
+    # Default: deny all outbound (explicit allow below)
+    - destination: "*"
+      port: "1-65535"
+      reason: "Default deny all network access"
+
+# ---------------------------------------------------------------------------
+# ALLOW - These actions are always permitted without prompting
+# ---------------------------------------------------------------------------
+allow:
+  commands:
+    # File inspection (read-only)
+    - pattern: "^ls\\b"
+    - pattern: "^cat\\b"
+    - pattern: "^head\\b"
+    - pattern: "^tail\\b"
+    - pattern: "^wc\\b"
+    - pattern: "^find\\b"
+    - pattern: "^grep\\b"
+    - pattern: "^pwd$"
+    - pattern: "^echo\\b"
+    - pattern: "^date$"
+
+    # Python (within venv)
+    - pattern: "^python3?\\b"
+    - pattern: "^pip\\b"
+
+    # Ollama (local LLM)
+    - pattern: "^ollama\\b"
+
+    # nanobot
+    - pattern: "^nanobot\\b"
+
+    # Node.js / MCP servers
+    - pattern: "^npx\\b"
+    - pattern: "^node\\b"
+
+    # File operations (within allowed paths)
+    - pattern: "^mkdir\\b"
+    - pattern: "^cp\\b"
+    - pattern: "^mv\\b"
+
+  paths:
+    # Project workspace
+    - path: "~/ai-assistant/*"
+    - path: "~/ai-assistant/**"
+
+    # Documents and downloads (bid files)
+    - path: "~/Documents/*"
+    - path: "~/Documents/**"
+    - path: "~/Downloads/*"
+    - path: "~/Downloads/**"
+
+    # Adobe applications (macOS)
+    - path: "/Applications/Adobe*"
+    - path: "/Applications/Adobe*/**"
+
+    # Adobe applications (Windows)
+    - path: "C:\\Program Files\\Adobe\\*"
+
+    # Temp directory (for processing)
+    - path: "/tmp/ai-assistant-*"
+
+  network:
+    # Local LLM
+    - destination: "localhost"
+      port: "11434"
+      reason: "Ollama API"
+
+    # nanobot web interface
+    - destination: "127.0.0.1"
+      port: "3000"
+      reason: "nanobot web UI"
+
+    # GitHub (for MCP server packages)
+    - destination: "github.com"
+      port: "443"
+      reason: "GitHub for package downloads"
+    - destination: "raw.githubusercontent.com"
+      port: "443"
+      reason: "GitHub raw content"
+
+    # npm registry (for MCP servers)
+    - destination: "registry.npmjs.org"
+      port: "443"
+      reason: "npm packages for MCP servers"
+
+    # PyPI (for Python packages)
+    - destination: "pypi.org"
+      port: "443"
+      reason: "Python packages"
+    - destination: "files.pythonhosted.org"
+      port: "443"
+      reason: "Python package files"
+
+# ---------------------------------------------------------------------------
+# PROMPT - Ask user for approval before executing
+# ---------------------------------------------------------------------------
+prompt:
+  # Catch-all for anything not explicitly allowed or denied
+  - pattern: "*"
+    timeout: 30
+    message: "AgentGuard: The AI wants to run an unrecognized command. Please review."
+
+  # Specific actions that need confirmation
+  - action: "send_email"
+    message: "The AI wants to send an email. Review the recipient and content."
+    timeout: 60
+
+  - action: "delete_file"
+    message: "The AI wants to delete a file. Please confirm."
+    timeout: 30
+
+  - action: "web_browse"
+    message: "The AI wants to browse a URL. Please confirm the destination."
+    timeout: 30
+
+  - action: "adobe_control"
+    message: "The AI wants to control an Adobe application. Please confirm."
+    timeout: 30
+
+# ---------------------------------------------------------------------------
+# Logging configuration
+# ---------------------------------------------------------------------------
+logging:
+  enabled: true
+  directory: "~/ai-assistant/logs"
+  format: "json"
+  rotate_size_mb: 50
+  retain_days: 30
+  log_levels:
+    - BLOCKED
+    - DENIED
+    - APPROVED
+    - EXECUTED
+    - ERROR

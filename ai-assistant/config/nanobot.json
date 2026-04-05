@@ -1,0 +1,135 @@
+{
+  "version": "1.0",
+  "name": "bid-processing-assistant",
+  "description": "Autonomous Bid Processing Assistant with local LLM and MCP tools",
+
+  "llm": {
+    "provider": "ollama",
+    "model": "mistral:7b",
+    "base_url": "http://localhost:11434",
+    "temperature": 0.7,
+    "max_tokens": 4096,
+    "fallback_model": "llama3.2:3b"
+  },
+
+  "system_prompt": "You are an expert construction bid analyst. You help process bid packages, generate accurate quotes, create professional drawings, and communicate with clients. Always verify numbers, flag uncertainties, and ask for confirmation before sending emails or modifying files.",
+
+  "mcp": {
+    "enabled": true,
+    "servers": {
+      "filesystem": {
+        "transport": "stdio",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "~/Documents"],
+        "description": "Read and write files in ~/Documents"
+      },
+      "photoshop": {
+        "transport": "stdio",
+        "command": "npx",
+        "args": ["-y", "@anthropic/photoshop-mcp-server"],
+        "description": "Control Adobe Photoshop via MCP"
+      },
+      "illustrator": {
+        "transport": "stdio",
+        "command": "python3",
+        "args": ["~/ai-assistant/mcp/illustrator_server.py"],
+        "description": "Control Adobe Illustrator via custom MCP server"
+      },
+      "websearch": {
+        "transport": "stdio",
+        "command": "python3",
+        "args": ["~/ai-assistant/agent/web_access.py"],
+        "description": "Web search and content extraction"
+      }
+    }
+  },
+
+  "channels": {
+    "web": {
+      "enabled": true,
+      "port": 3000,
+      "host": "127.0.0.1",
+      "cors_origins": ["http://localhost:3000"],
+      "max_concurrent_sessions": 2
+    },
+    "cli": {
+      "enabled": true
+    }
+  },
+
+  "security": {
+    "command_whitelist": [
+      "python",
+      "python3",
+      "node",
+      "npx",
+      "ollama",
+      "ls",
+      "cat",
+      "head",
+      "tail",
+      "grep",
+      "find",
+      "wc",
+      "echo",
+      "mkdir",
+      "cp",
+      "mv"
+    ],
+    "command_blacklist": [
+      "rm -rf",
+      "sudo",
+      "su",
+      "chmod 777",
+      "dd",
+      "mkfs",
+      "curl|sh",
+      "wget|sh"
+    ],
+    "blocked_paths": [
+      "~/.ssh",
+      "~/.aws",
+      "~/.config/gcloud",
+      "~/.gnupg",
+      "**/.env",
+      "*.pem",
+      "*.key"
+    ],
+    "block_internal_ips": true,
+    "sandbox_enabled": true,
+    "max_command_timeout": 60,
+    "require_approval_for": [
+      "send_email",
+      "delete_file",
+      "web_browse_unknown"
+    ]
+  },
+
+  "tools": {
+    "bid_processor": {
+      "command": "python3",
+      "args": ["~/ai-assistant/agent/bid_agent.py"],
+      "description": "Process bid PDFs and generate quotes"
+    },
+    "computer_control": {
+      "command": "python3",
+      "args": ["-c", "from agent.computer_control import ComputerController"],
+      "description": "Mouse/keyboard automation for Adobe apps"
+    }
+  },
+
+  "logging": {
+    "level": "info",
+    "file": "~/ai-assistant/logs/nanobot.log",
+    "format": "json",
+    "rotate_size_mb": 50,
+    "retain_days": 30
+  },
+
+  "workspace": {
+    "root": "~/ai-assistant",
+    "bids_directory": "~/Documents/Bids",
+    "screenshots_directory": "~/ai-assistant/screenshots",
+    "output_directory": "~/Documents/Bids/quotes"
+  }
+}
