@@ -1,0 +1,107 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 2088 >>
+stream
+BT
+/F1 10 Tf
+1 0 0 1 50 750 Tm
+(BID PACKAGE) Tj
+1 0 0 1 50 736 Tm
+(Project: Riverside Office Renovation) Tj
+1 0 0 1 50 722 Tm
+(Bid Number: BID-2026-0042) Tj
+1 0 0 1 50 708 Tm
+(Client: Riverside Development Corp.) Tj
+1 0 0 1 50 694 Tm
+(Due Date: 2026-05-15) Tj
+1 0 0 1 50 680 Tm
+(Contact: John Smith, jsmith@riverside-dev.example.com) Tj
+1 0 0 1 50 666 Tm
+() Tj
+1 0 0 1 50 652 Tm
+(SCOPE OF WORK) Tj
+1 0 0 1 50 638 Tm
+(Complete interior renovation of the 3rd floor office space.) Tj
+1 0 0 1 50 624 Tm
+() Tj
+1 0 0 1 50 610 Tm
+(MATERIAL SCHEDULE) Tj
+1 0 0 1 50 596 Tm
+(1. 4x8 Drywall Sheet \(5/8"\) - 320 sheets) Tj
+1 0 0 1 50 582 Tm
+(2. Metal Stud Framing \(3-5/8"\) - 480 pieces) Tj
+1 0 0 1 50 568 Tm
+(3. Insulation R-19 Batts - 2400 sq ft) Tj
+1 0 0 1 50 554 Tm
+(4. Commercial Carpet Tile - 3200 sq ft) Tj
+1 0 0 1 50 540 Tm
+(5. Interior Latex Paint \(5 gal\) - 24 buckets) Tj
+1 0 0 1 50 526 Tm
+(6. LED Recessed Light Fixture - 48 each) Tj
+1 0 0 1 50 512 Tm
+(7. Electrical Outlet \(20A\) - 64 each) Tj
+1 0 0 1 50 498 Tm
+(8. Light Switch \(3-way\) - 32 each) Tj
+1 0 0 1 50 484 Tm
+(9. HVAC Duct \(6" flex\) - 200 linear ft) Tj
+1 0 0 1 50 470 Tm
+(10. Baseboard Trim \(MDF, 4"\) - 600 linear ft) Tj
+1 0 0 1 50 456 Tm
+(11. Interior Door \(hollow core\) - 16 each) Tj
+1 0 0 1 50 442 Tm
+(12. Door Hardware Set - 16 each) Tj
+1 0 0 1 50 428 Tm
+() Tj
+1 0 0 1 50 414 Tm
+(LABOR REQUIREMENTS) Tj
+1 0 0 1 50 400 Tm
+(Estimated Labor: 640 hours) Tj
+1 0 0 1 50 386 Tm
+(Labor Rate: $85.00/hour) Tj
+1 0 0 1 50 372 Tm
+() Tj
+1 0 0 1 50 358 Tm
+(SPECIAL REQUIREMENTS) Tj
+1 0 0 1 50 344 Tm
+(- All work must comply with local building codes \(2024 IBC\).) Tj
+1 0 0 1 50 330 Tm
+(- Contractor must maintain active liability insurance \($2M minimum\).) Tj
+1 0 0 1 50 316 Tm
+(- Work hours restricted to 7:00 AM - 6:00 PM, Monday through Friday.) Tj
+1 0 0 1 50 302 Tm
+(- Hazardous material abatement \(asbestos\) may be required.) Tj
+1 0 0 1 50 288 Tm
+(- LEED certification documentation required for all materials.) Tj
+1 0 0 1 50 274 Tm
+(- Prevailing wage rates apply per state labor law.) Tj
+1 0 0 1 50 260 Tm
+() Tj
+ET
+
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000002381 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+2451
+%%EOF
