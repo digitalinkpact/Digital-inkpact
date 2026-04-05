@@ -25,13 +25,13 @@ from typing import Any, Dict, List, Optional
 try:
     import PyPDF2
 except ImportError:
-    print("Missing dependency: pip install PyPDF2")
+    sys.stderr.write("Missing dependency: pip install PyPDF2\n")
     sys.exit(1)
 
 try:
     import ollama
 except ImportError:
-    print("Missing dependency: pip install ollama")
+    sys.stderr.write("Missing dependency: pip install ollama\n")
     sys.exit(1)
 
 # ---------------------------------------------------------------------------
@@ -342,19 +342,18 @@ If information is missing, use null or empty arrays. Be precise with numbers.
         if not bid_file.suffix.lower() == ".pdf":
             raise ValueError(f"Expected a PDF file, got: {bid_file.suffix}")
 
-        print(f"  Reading bid package: {bid_file.name}")
+        logger.info("Reading bid package: %s", bid_file.name)
         bid_data = await self.parse_bid_pdf(bid_file)
 
-        print("  Generating quote...")
+        logger.info("Generating quote...")
         quote = await self.generate_quote(bid_data)
 
         output_path = await self.save_quote(quote)
 
-        print()
-        print("  Processing complete!")
-        print(f"   Quote saved: {output_path}")
-        print(f"   Total: ${quote['total_quote']:,.2f}")
-        print(f"   Line items: {len(quote['line_items'])}")
+        logger.info("Processing complete!")
+        logger.info("Quote saved: %s", output_path)
+        logger.info("Total: $%,.2f", quote['total_quote'])
+        logger.info("Line items: %d", len(quote['line_items']))
 
         return quote
 

@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs (generated at runtime)
+ai-assistant/logs/*.log
+ai-assistant/logs/*.json
+
+# Screenshots (generated at runtime)
+ai-assistant/screenshots/
+
+# Models (downloaded at runtime)
+ai-assistant/models/
+
+# Environment files
+.env
+.env.*

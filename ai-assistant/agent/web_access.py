@@ -90,6 +90,7 @@ class WebAccessController:
     """Web browsing, search, and email automation with security restrictions."""
 
     def __init__(self) -> None:
+        """Initialise the web access controller, verifying dependencies."""
         if aiohttp is None:
             raise RuntimeError("aiohttp is not installed. Run: pip install aiohttp")
         if BeautifulSoup is None:
@@ -309,7 +310,15 @@ class WebAccessController:
     # Bid-specific web actions
     # ------------------------------------------------------------------
     async def search_bid_opportunities(self, keywords: str, location: str = "") -> List[Dict[str, str]]:
-        """Search for bid opportunities online."""
+        """Search for construction bid opportunities online.
+
+        Args:
+            keywords: Search terms (e.g. 'commercial renovation').
+            location: Geographic filter (e.g. 'Texas').
+
+        Returns:
+            List of search result dicts with title, url, snippet.
+        """
         query = f"construction bid opportunity {keywords}"
         if location:
             query += f" {location}"
