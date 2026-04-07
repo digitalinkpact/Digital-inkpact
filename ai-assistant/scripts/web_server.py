@@ -155,13 +155,17 @@ def run_async(coro):
 # ---------------------------------------------------------------------------
 INTENT_PATTERNS = {
     "web_search": [
-        r"(?:search|look up|find|google|lookup)\s+(?:for\s+)?(.+)",
+        r"(?:search|look up|find|google|lookup|browse|web search)\s+(?:for\s+|the web for\s+|online for\s+)?(.+)",
+        r"(?:can you |please )?(?:search|look up|find|google)\s+(?:for\s+|the web for\s+)?(.+)",
         r"what (?:is|are) the (?:price|cost)s? (?:of|for)\s+(.+)",
         r"find prices? (?:for|of)\s+(.+)",
+        r"(?:search|look) (?:on |)(?:the )?(?:web|internet|online)\s+(?:for\s+)?(.+)",
     ],
     "material_price": [
         r"(?:price|cost|how much)\s+(?:of|for|does|is)\s+(.+?)(?:\s+cost)?$",
         r"(?:lookup|look up) (?:material )?price\s+(?:for|of)\s+(.+)",
+        r"how much (?:does|do|is|are)\s+(.+?)(?:\s+cost)?$",
+        r"what(?:'s| is| are) the (?:price|cost)\s+(?:of|for)\s+(.+)",
     ],
     "process_bid": [
         r"(?:process|analyze|analyse|parse|read|extract)\s+(?:the\s+)?(?:bid|pdf|document)\s+(.+)",
@@ -169,7 +173,7 @@ INTENT_PATTERNS = {
     ],
     "take_screenshot": [
         r"(?:take|capture|grab)\s+(?:a\s+)?screenshot",
-        r"screenshot\s+(?:of\s+)?(?:the\s+)?(?:screen|desktop)",
+        r"screenshot",
     ],
     "click": [
         r"click\s+(?:at\s+)?(?:\(?\s*(\d+)\s*,\s*(\d+)\s*\)?|on\s+(.+))",
@@ -179,12 +183,13 @@ INTENT_PATTERNS = {
         r"type\s+(.+)",
     ],
     "open_app": [
-        r"open\s+(?:app(?:lication)?\s+)?(.+)",
+        r"open\s+(?:app(?:lication)?\s+)?(?:the\s+)?(.+)",
         r"launch\s+(.+)",
-        r"start\s+(.+)",
+        r"start\s+(?:up\s+)?(.+)",
     ],
     "compose_email": [
         r"(?:compose|send|write|draft)\s+(?:an?\s+)?email",
+        r"email\s+(?:to|about)\s+(.+)",
     ],
     "search_bids": [
         r"(?:search|find|look for)\s+(?:bid\s+)?opportunities?\s*(?:for\s+)?(.+)?",
@@ -198,17 +203,20 @@ REQUIRES_APPROVAL = {"take_screenshot", "click", "type_text", "open_app", "compo
 def detect_intent(message: str) -> Optional[Dict[str, Any]]:
     """Detect the user's intent from their message using keyword patterns."""
     msg_lower = message.lower().strip()
+    logger.info("Detecting intent for: '%s'", msg_lower[:100])
 
     for intent, patterns in INTENT_PATTERNS.items():
         for pattern in patterns:
             match = re.search(pattern, msg_lower, re.IGNORECASE)
             if match:
+                logger.info("Intent matched: %s (pattern: %s)", intent, pattern[:50])
                 return {
                     "intent": intent,
                     "match": match,
                     "groups": match.groups(),
                     "original": message,
                 }
+    logger.info("No intent matched — routing to LLM")
     return None
 
 
