@@ -9,7 +9,7 @@ Full-featured fallback web server that provides:
   - Session management (per-browser-tab conversation memory)
 
 Usage:
-    python3 web_server.py <install_dir> <llm_model>
+    python3 web_server.py <install_dir> <llm_model> [port]
 """
 
 import asyncio
@@ -32,7 +32,10 @@ from typing import Any, Dict, List, Optional
 # ---------------------------------------------------------------------------
 INSTALL_DIR = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/ai-assistant")
 LLM_MODEL = sys.argv[2] if len(sys.argv) > 2 else "llama3.2:3b"
-PORT = 3000
+try:
+    PORT = int(sys.argv[3]) if len(sys.argv) > 3 else 3000
+except ValueError:
+    PORT = 3000
 
 sys.path.insert(0, os.path.join(INSTALL_DIR, "agent"))
 
@@ -143,11 +146,11 @@ def get_event_loop():
     return _loop
 
 
-def run_async(coro):
+def run_async(coro, timeout: int = 120):
     """Run an async coroutine from sync code, return the result."""
     loop = get_event_loop()
     future = asyncio.run_coroutine_threadsafe(coro, loop)
-    return future.result(timeout=120)
+    return future.result(timeout=timeout)
 
 
 # ---------------------------------------------------------------------------
@@ -203,11 +206,22 @@ INTENT_PATTERNS = {
         r"what tools\s+(?:do you have|are available)",
         r"(?:list|show|tell me)\s+(?:your\s+)?(?:capabilities|features|tools|abilities)",
         r"can you (?:search|go)\s+(?:the\s+)?(?:web|internet|online)",
-        r"(?:do you have|have you got)\s+(?:wed|web)\s+access",
     ],
 }
 
 REQUIRES_APPROVAL = {"take_screenshot", "click", "type_text", "open_app", "compose_email"}
+
+TOOL_TIMEOUTS = {
+    "web_search": 45,
+    "material_price": 45,
+    "search_bids": 60,
+    "process_bid": 180,
+    "take_screenshot": 20,
+    "click": 20,
+    "type_text": 25,
+    "open_app": 45,
+    "compose_email": 45,
+}
 
 
 def detect_intent(message: str) -> Optional[Dict[str, Any]]:
@@ -472,16 +486,16 @@ def _execute_immediate(intent: str, groups: tuple, message: str) -> str:
     """Execute a tool that doesn't need approval. Returns result text."""
     if intent == "web_search":
         query = next((g for g in groups if g), message)
-        return run_async(execute_web_search(query))
+        return run_async(execute_web_search(query), timeout=TOOL_TIMEOUTS["web_search"])
     elif intent == "material_price":
         material = next((g for g in groups if g), message)
-        return run_async(execute_material_price(material))
+        return run_async(execute_material_price(material), timeout=TOOL_TIMEOUTS["material_price"])
     elif intent == "process_bid":
         filepath = next((g for g in groups if g), "")
-        return run_async(execute_process_bid(filepath))
+        return run_async(execute_process_bid(filepath), timeout=TOOL_TIMEOUTS["process_bid"])
     elif intent == "search_bids":
         keywords = next((g for g in groups if g), "construction")
-        return run_async(execute_search_bids(keywords))
+        return run_async(execute_search_bids(keywords), timeout=TOOL_TIMEOUTS["search_bids"])
     elif intent == "capabilities":
         return (
             "Yes! Here's what I can do:\n\n"
@@ -519,23 +533,23 @@ def handle_approve(action_id: str) -> Dict[str, Any]:
 
     try:
         if intent == "take_screenshot":
-            result = run_async(execute_take_screenshot())
+            result = run_async(execute_take_screenshot(), timeout=TOOL_TIMEOUTS["take_screenshot"])
         elif intent == "click":
             x = int(groups[0]) if groups[0] else 0
             y = int(groups[1]) if groups[1] else 0
-            result = run_async(execute_click(x, y))
+            result = run_async(execute_click(x, y), timeout=TOOL_TIMEOUTS["click"])
         elif intent == "type_text":
             text = next((g for g in groups if g), "")
-            result = run_async(execute_type_text(text))
+            result = run_async(execute_type_text(text), timeout=TOOL_TIMEOUTS["type_text"])
         elif intent == "open_app":
             app = next((g for g in groups if g), "")
-            result = run_async(execute_open_app(app))
+            result = run_async(execute_open_app(app), timeout=TOOL_TIMEOUTS["open_app"])
         elif intent == "compose_email":
             result = run_async(execute_compose_email(
                 to="recipient@example.com",
                 subject="From Bid Assistant",
                 body=message,
-            ))
+            ), timeout=TOOL_TIMEOUTS["compose_email"])
         else:
             result = "Unknown action type."
 
@@ -550,7 +564,7 @@ def handle_approve(action_id: str) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 # HTML Frontend
 # ---------------------------------------------------------------------------
-HTML = """<!DOCTYPE html>
+HTML = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">

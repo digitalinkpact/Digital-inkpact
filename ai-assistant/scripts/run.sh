@@ -19,6 +19,7 @@ LOG_DIR="${INSTALL_DIR}/logs"
 VENV_DIR="${INSTALL_DIR}/venv"
 OLLAMA_PORT=11434
 NANOBOT_PORT=3000
+MAX_PORT_ATTEMPTS=10
 
 # Colors
 RED='\033[0;31m'
@@ -31,6 +32,48 @@ log_info()  { echo -e "${BLUE}[INFO]${NC}  $*"; }
 log_ok()    { echo -e "${GREEN}[OK]${NC}    $*"; }
 log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
+
+is_port_free() {
+    local port="$1"
+    if lsof -ti :"${port}" >/dev/null 2>&1; then
+        return 1
+    fi
+    return 0
+}
+
+cleanup_stale_web_server_on_port() {
+    local port="$1"
+    local pids
+    pids=$(lsof -ti :"${port}" 2>/dev/null || true)
+    if [[ -z "${pids}" ]]; then
+        return
+    fi
+
+    for pid in ${pids}; do
+        local cmd
+        cmd=$(ps -p "${pid}" -o args= 2>/dev/null || true)
+        if [[ "${cmd}" == *"${SCRIPT_DIR}/web_server.py"* ]]; then
+            log_warn "Killing stale assistant process on port ${port} (PID ${pid})"
+            kill "${pid}" 2>/dev/null || true
+        fi
+    done
+}
+
+select_nanobot_port() {
+    local preferred_port="$1"
+    local attempts="$2"
+    local candidate
+
+    for i in $(seq 0 $((attempts - 1))); do
+        candidate=$((preferred_port + i))
+        if is_port_free "${candidate}"; then
+            echo "${candidate}"
+            return 0
+        fi
+    done
+
+    return 1
+}
 
 # ---------------------------------------------------------------------------
 # Cleanup on exit
@@ -130,14 +173,23 @@ activate_venv() {
 start_nanobot() {
     log_info "Starting web interface..."
 
-    # Kill any stale process on our port
-    local stale_pid
-    stale_pid=$(lsof -ti :${NANOBOT_PORT} 2>/dev/null || true)
-    if [[ -n "${stale_pid}" ]]; then
-        log_warn "Killing stale process on port ${NANOBOT_PORT} (PID ${stale_pid})"
-        kill ${stale_pid} 2>/dev/null || true
-        sleep 1
+    # If our own old web server is still around, clear it first.
+    cleanup_stale_web_server_on_port "${NANOBOT_PORT}"
+    sleep 1
+
+    local selected_port
+    selected_port=$(select_nanobot_port "${NANOBOT_PORT}" "${MAX_PORT_ATTEMPTS}" || true)
+    if [[ -z "${selected_port}" ]]; then
+        log_error "Could not find a free port in range ${NANOBOT_PORT}-$((NANOBOT_PORT + MAX_PORT_ATTEMPTS - 1))."
+        lsof -iTCP:${NANOBOT_PORT}-$((NANOBOT_PORT + MAX_PORT_ATTEMPTS - 1)) -sTCP:LISTEN -n -P || true
+        exit 1
     fi
+
+    if [[ "${selected_port}" != "${NANOBOT_PORT}" ]]; then
+        log_warn "Port ${NANOBOT_PORT} is busy. Falling back to port ${selected_port}."
+    fi
+
+    NANOBOT_PORT="${selected_port}"
 
     start_fallback_interface
 }
@@ -147,11 +199,28 @@ start_nanobot() {
 # ---------------------------------------------------------------------------
 start_fallback_interface() {
     MODEL=$(python3 -c "import json; print(json.load(open('${CONFIG_FILE}'))['llm']['model'])" 2>/dev/null || echo "llama3.2:3b")
-    python3 "${SCRIPT_DIR}/web_server.py" "${INSTALL_DIR}" "${MODEL}" >> "${LOG_DIR}/nanobot.log" 2>&1 &
+    python3 "${SCRIPT_DIR}/web_server.py" "${INSTALL_DIR}" "${MODEL}" "${NANOBOT_PORT}" >> "${LOG_DIR}/nanobot.log" 2>&1 &
 
     NANOBOT_PID=$!
-    sleep 1
-    log_ok "Web interface started on port ${NANOBOT_PORT}"
+
+    # Verify the server is actually reachable before reporting success.
+    for i in $(seq 1 15); do
+        if curl -sf "http://127.0.0.1:${NANOBOT_PORT}/health" >/dev/null 2>&1; then
+            log_ok "Web interface started on port ${NANOBOT_PORT}"
+            return
+        fi
+
+        if ! kill -0 "${NANOBOT_PID}" 2>/dev/null; then
+            break
+        fi
+
+        sleep 1
+    done
+
+    log_error "Web interface failed to start on port ${NANOBOT_PORT}."
+    log_error "Last 20 lines from ${LOG_DIR}/nanobot.log:"
+    tail -n 20 "${LOG_DIR}/nanobot.log" 2>/dev/null || true
+    exit 1
 }
 
 # ---------------------------------------------------------------------------

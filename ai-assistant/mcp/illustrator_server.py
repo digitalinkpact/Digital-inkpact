@@ -12,10 +12,21 @@ or use Illustrator's ExtendScript/JSX automation interface.
 Transport: stdio (launched by nanobot)
 """
 
+import asyncio
 import json
 import logging
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "agent"))
+
+try:
+    from computer_control import ComputerController
+except Exception as exc:  # pragma: no cover - runtime import in tool process
+    ComputerController = None  # type: ignore[assignment]
+    _IMPORT_ERROR = str(exc)
+else:
+    _IMPORT_ERROR = ""
 
 LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -26,6 +37,21 @@ logging.basicConfig(
     handlers=[logging.FileHandler(LOG_DIR / "illustrator_mcp.log")],
 )
 logger = logging.getLogger("illustrator_mcp")
+
+_controller = None
+
+
+def get_controller():
+    global _controller
+    if _controller is None:
+        if ComputerController is None:
+            raise RuntimeError(f"computer_control unavailable: {_IMPORT_ERROR}")
+        _controller = ComputerController()
+    return _controller
+
+
+def run_async(coro):
+    return asyncio.run(coro)
 
 # ---------------------------------------------------------------------------
 # MCP protocol helpers (stdio JSON-RPC)
@@ -135,21 +161,47 @@ def handle_request(request: dict) -> None:
         tool_args = params.get("arguments", {})
         logger.info("Tool call: %s args=%s", tool_name, tool_args)
 
-        # Stub implementations — in production these would control Illustrator
-        if tool_name == "illustrator_open":
-            send_response(req_id, {"content": [{"type": "text", "text": "Illustrator open requested. Use computer_control module for actual automation."}]})
-        elif tool_name == "illustrator_new_document":
-            w = tool_args.get("width", 1920)
-            h = tool_args.get("height", 1080)
-            send_response(req_id, {"content": [{"type": "text", "text": f"New document requested: {w}x{h}"}]})
-        elif tool_name == "illustrator_add_text":
-            send_response(req_id, {"content": [{"type": "text", "text": f"Text added: '{tool_args.get('text', '')}'"}]})
-        elif tool_name == "illustrator_draw_line":
-            send_response(req_id, {"content": [{"type": "text", "text": "Line drawn."}]})
-        elif tool_name == "illustrator_save":
-            send_response(req_id, {"content": [{"type": "text", "text": f"Document save requested: {tool_args.get('path', 'default')}"}]})
-        else:
-            send_error(req_id, -32601, f"Unknown tool: {tool_name}")
+        try:
+            ctrl = get_controller()
+
+            if tool_name == "illustrator_open":
+                opened = run_async(ctrl.open_application("Adobe Illustrator"))
+                if opened:
+                    send_response(req_id, {"content": [{"type": "text", "text": "Illustrator launched successfully."}]})
+                else:
+                    send_response(req_id, {"content": [{"type": "text", "text": "Illustrator launch failed. Verify a supported desktop app/binary is installed."}]})
+
+            elif tool_name == "illustrator_new_document":
+                w = int(tool_args.get("width", 1920))
+                h = int(tool_args.get("height", 1080))
+                run_async(ctrl.adobe_new_document(w, h))
+                send_response(req_id, {"content": [{"type": "text", "text": f"Created new document: {w}x{h}"}]})
+
+            elif tool_name == "illustrator_add_text":
+                text = str(tool_args.get("text", ""))
+                x = int(tool_args.get("x", 100))
+                y = int(tool_args.get("y", 100))
+                run_async(ctrl.adobe_add_text(text, x, y))
+                send_response(req_id, {"content": [{"type": "text", "text": f"Added text at ({x}, {y})."}]})
+
+            elif tool_name == "illustrator_draw_line":
+                x1 = int(tool_args.get("x1", 100))
+                y1 = int(tool_args.get("y1", 100))
+                x2 = int(tool_args.get("x2", 400))
+                y2 = int(tool_args.get("y2", 200))
+                run_async(ctrl.adobe_draw_line((x1, y1), (x2, y2)))
+                send_response(req_id, {"content": [{"type": "text", "text": f"Drew line from ({x1}, {y1}) to ({x2}, {y2})."}]})
+
+            elif tool_name == "illustrator_save":
+                save_path = tool_args.get("path")
+                run_async(ctrl.adobe_save(save_path))
+                send_response(req_id, {"content": [{"type": "text", "text": f"Save command sent{f' to {save_path}' if save_path else ''}."}]})
+
+            else:
+                send_error(req_id, -32601, f"Unknown tool: {tool_name}")
+        except Exception as exc:
+            logger.error("Tool call failed: %s", exc)
+            send_error(req_id, -32000, str(exc))
 
     elif method == "notifications/initialized":
         # No response needed for notifications

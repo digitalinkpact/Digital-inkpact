@@ -163,16 +163,30 @@ If information is missing, use null or empty arrays. Be precise with numbers.
         material_cost = 0.0
         line_items: List[Dict[str, Any]] = []
 
-        for item in bid_data.get("line_items", []):
-            unit_price = await self._estimate_unit_price(item["description"])
-            quantity = float(item.get("quantity", 0))
+        for raw_item in bid_data.get("line_items", []):
+            if not isinstance(raw_item, dict):
+                logger.warning("Skipping malformed line item (not an object): %s", raw_item)
+                continue
+
+            description = str(raw_item.get("description") or "").strip()
+            if not description:
+                logger.warning("Skipping line item with empty description: %s", raw_item)
+                continue
+
+            try:
+                quantity = float(raw_item.get("quantity", 0) or 0)
+            except (TypeError, ValueError):
+                logger.warning("Invalid quantity for '%s': %s", description, raw_item.get("quantity"))
+                quantity = 0.0
+
+            unit_price = await self._estimate_unit_price(description)
             total = quantity * unit_price
             material_cost += total
             line_items.append(
                 {
-                    "description": item["description"],
+                    "description": description,
                     "quantity": quantity,
-                    "unit": item.get("unit", "each"),
+                    "unit": str(raw_item.get("unit") or "each"),
                     "unit_price": round(unit_price, 2),
                     "total": round(total, 2),
                 }
@@ -262,7 +276,11 @@ If information is missing, use null or empty arrays. Be precise with numbers.
                 f"Estimate the unit price in USD for this construction material: '{description}'. "
                 "Reply with ONLY a number (no dollar sign, no text)."
             )
-            return float(re.search(r"[\d.]+", resp).group())  # type: ignore[union-attr]
+            match = re.search(r"[\d.]+", resp)
+            if match:
+                return float(match.group())
+            logger.warning("Could not parse numeric unit price from model response: %s", resp)
+            return 10.00
         except Exception:
             return 10.00  # safe default
 

@@ -20,6 +20,7 @@ import asyncio
 import logging
 import os
 import platform
+import shutil
 import subprocess
 import time
 from pathlib import Path
@@ -68,6 +69,11 @@ class ComputerController:
         self.safety_delay = safety_delay
         self._last_action_time = 0.0
         self.system = platform.system()  # "Darwin", "Windows", "Linux"
+        if self.system == "Linux" and not os.environ.get("DISPLAY"):
+            raise RuntimeError(
+                "DISPLAY is not set. Desktop automation requires an active graphical session. "
+                "Start an X session (or Xvfb) and set DISPLAY before using computer control."
+            )
         logger.info("ComputerController initialised  platform=%s", self.system)
 
     def _throttle(self) -> None:
@@ -116,7 +122,7 @@ class ComputerController:
     # ------------------------------------------------------------------
     # Keyboard
     # ------------------------------------------------------------------
-    async def type_text(self, text: str, interval: float = 0.03) -> None:
+    async def type_text(self, text: str, interval: float = 0.06) -> None:
         """Type text character by character with *interval* delay."""
         self._throttle()
         logger.info("type_text len=%d", len(text))
@@ -162,10 +168,15 @@ class ComputerController:
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         filename = SCREENSHOT_DIR / f"screenshot_{timestamp}.png"
 
-        screenshot = pyautogui.screenshot(region=region)
-        screenshot.save(str(filename))
-        logger.info("Screenshot saved: %s", filename)
-        return filename
+        try:
+            screenshot = pyautogui.screenshot(region=region)
+            screenshot.save(str(filename))
+            logger.info("Screenshot saved: %s", filename)
+            return filename
+        except Exception as exc:
+            display = os.environ.get("DISPLAY", "<unset>")
+            logger.error("Screenshot failed (DISPLAY=%s): %s", display, exc)
+            raise RuntimeError(f"Screenshot failed. Verify desktop session and DISPLAY (current: {display}).") from exc
 
     async def locate_on_screen(self, image_path: str, confidence: float = 0.8) -> Optional[Tuple[int, int]]:
         """
@@ -210,10 +221,22 @@ class ComputerController:
             elif self.system == "Windows":
                 os.startfile(app_name)  # type: ignore[attr-defined]
             else:
-                # Linux - try common launchers
-                subprocess.Popen([app_name.lower().replace(" ", "-")])
+                # Linux: resolve a launchable binary from common aliases.
+                normalized = app_name.lower().strip()
+                aliases = {
+                    "adobe photoshop": ["photoshop", "adobe-photoshop", "gimp"],
+                    "photoshop": ["photoshop", "adobe-photoshop", "gimp"],
+                    "adobe illustrator": ["illustrator", "adobe-illustrator", "inkscape"],
+                    "illustrator": ["illustrator", "adobe-illustrator", "inkscape"],
+                }
+                candidates = aliases.get(normalized, [normalized.replace(" ", "-")])
+                binary = next((cmd for cmd in candidates if shutil.which(cmd)), None)
+                if not binary:
+                    logger.error("No launchable binary found for '%s' (candidates=%s)", app_name, candidates)
+                    return False
+                subprocess.Popen([binary])
 
-            await asyncio.sleep(3)  # Wait for app to initialise
+            await asyncio.sleep(5)  # Give desktop apps time to initialise
             logger.info("Application launched: %s", app_name)
             return True
         except Exception as exc:
