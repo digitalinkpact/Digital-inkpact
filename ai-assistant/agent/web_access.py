@@ -34,7 +34,7 @@ try:
 except ImportError:
     BeautifulSoup = None  # type: ignore[assignment,misc]
 
-LOG_DIR = Path(os.environ.get("AI_ASSISTANT_LOG_DIR", Path.home() / "ai-assistant" / "logs"))
+LOG_DIR = Path(os.environ.get("AI_ASSISTANT_LOG_DIR", Path(__file__).resolve().parent.parent / "logs"))
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(

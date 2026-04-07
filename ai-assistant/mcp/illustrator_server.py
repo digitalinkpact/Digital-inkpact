@@ -17,7 +17,7 @@ import logging
 import sys
 from pathlib import Path
 
-LOG_DIR = Path.home() / "ai-assistant" / "logs"
+LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(

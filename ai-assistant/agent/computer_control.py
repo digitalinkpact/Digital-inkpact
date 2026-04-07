@@ -38,7 +38,7 @@ try:
 except ImportError:
     Image = None  # type: ignore[assignment,misc]
 
-LOG_DIR = Path(os.environ.get("AI_ASSISTANT_LOG_DIR", Path.home() / "ai-assistant" / "logs"))
+LOG_DIR = Path(os.environ.get("AI_ASSISTANT_LOG_DIR", Path(__file__).resolve().parent.parent / "logs"))
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(
@@ -51,7 +51,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("computer_control")
 
-SCREENSHOT_DIR = Path(os.environ.get("SCREENSHOT_DIR", Path.home() / "ai-assistant" / "screenshots"))
+SCREENSHOT_DIR = Path(os.environ.get("SCREENSHOT_DIR", Path(__file__).resolve().parent.parent / "screenshots"))
 SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
 
 

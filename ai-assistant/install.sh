@@ -18,7 +18,8 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-INSTALL_DIR="${HOME}/ai-assistant"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_DIR="${SCRIPT_DIR}"
 VENV_DIR="${INSTALL_DIR}/venv"
 LOG_DIR="${INSTALL_DIR}/logs"
 CONFIG_DIR="${INSTALL_DIR}/config"

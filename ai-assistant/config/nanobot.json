@@ -5,11 +5,11 @@
 
   "llm": {
     "provider": "ollama",
-    "model": "mistral:7b",
+    "model": "llama3.2:3b",
     "base_url": "http://localhost:11434",
     "temperature": 0.7,
     "max_tokens": 4096,
-    "fallback_model": "llama3.2:3b"
+    "fallback_model": "tinyllama"
   },
 
   "system_prompt": "You are an expert construction bid analyst. You help process bid packages, generate accurate quotes, create professional drawings, and communicate with clients. Always verify numbers, flag uncertainties, and ask for confirmation before sending emails or modifying files.",
@@ -32,13 +32,13 @@
       "illustrator": {
         "transport": "stdio",
         "command": "python3",
-        "args": ["~/ai-assistant/mcp/illustrator_server.py"],
+        "args": ["../mcp/illustrator_server.py"],
         "description": "Control Adobe Illustrator via custom MCP server"
       },
       "websearch": {
         "transport": "stdio",
         "command": "python3",
-        "args": ["~/ai-assistant/agent/web_access.py"],
+        "args": ["../agent/web_access.py"],
         "description": "Web search and content extraction"
       }
     }
@@ -48,7 +48,7 @@
     "web": {
       "enabled": true,
       "port": 3000,
-      "host": "127.0.0.1",
+      "host": "0.0.0.0",
       "cors_origins": ["http://localhost:3000"],
       "max_concurrent_sessions": 2
     },
@@ -108,7 +108,7 @@
   "tools": {
     "bid_processor": {
       "command": "python3",
-      "args": ["~/ai-assistant/agent/bid_agent.py"],
+      "args": ["../agent/bid_agent.py"],
       "description": "Process bid PDFs and generate quotes"
     },
     "computer_control": {
@@ -120,16 +120,16 @@
 
   "logging": {
     "level": "info",
-    "file": "~/ai-assistant/logs/nanobot.log",
+    "file": "../logs/nanobot.log",
     "format": "json",
     "rotate_size_mb": 50,
     "retain_days": 30
   },
 
   "workspace": {
-    "root": "~/ai-assistant",
+    "root": "..",
     "bids_directory": "~/Documents/Bids",
-    "screenshots_directory": "~/ai-assistant/screenshots",
+    "screenshots_directory": "../screenshots",
     "output_directory": "~/Documents/Bids/quotes"
   }
 }
