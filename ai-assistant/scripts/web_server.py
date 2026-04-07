@@ -195,6 +195,16 @@ INTENT_PATTERNS = {
         r"(?:search|find|look for)\s+(?:bid\s+)?opportunities?\s*(?:for\s+)?(.+)?",
         r"(?:find|search)\s+(?:construction\s+)?bids?\s*(?:for\s+|in\s+)?(.+)?",
     ],
+    "capabilities": [
+        r"(?:what can you do|what are your (?:capabilities|features|tools|abilities))",
+        r"(?:do you have|have you got)\s+(?:web|internet|online)\s+access",
+        r"can you (?:browse|access|use)\s+(?:the\s+)?(?:web|internet|online)",
+        r"(?:do you have|have you got)\s+access to\s+(?:the\s+)?(?:web|internet)",
+        r"what tools\s+(?:do you have|are available)",
+        r"(?:list|show|tell me)\s+(?:your\s+)?(?:capabilities|features|tools|abilities)",
+        r"can you (?:search|go)\s+(?:the\s+)?(?:web|internet|online)",
+        r"(?:do you have|have you got)\s+(?:wed|web)\s+access",
+    ],
 }
 
 REQUIRES_APPROVAL = {"take_screenshot", "click", "type_text", "open_app", "compose_email"}
@@ -472,6 +482,23 @@ def _execute_immediate(intent: str, groups: tuple, message: str) -> str:
     elif intent == "search_bids":
         keywords = next((g for g in groups if g), "construction")
         return run_async(execute_search_bids(keywords))
+    elif intent == "capabilities":
+        return (
+            "Yes! Here's what I can do:\n\n"
+            "**Web Search** — Search the internet via DuckDuckGo\n"
+            "  Try: 'search for drywall prices' or 'look up HVAC contractors'\n\n"
+            "**Material Price Lookup** — Find construction material costs\n"
+            "  Try: 'how much does a 4x8 drywall sheet cost'\n\n"
+            "**Bid Processing** — Analyze bid PDFs and generate quotes\n"
+            "  Try: 'process bid /path/to/file.pdf'\n\n"
+            "**Bid Opportunity Search** — Find open bid opportunities\n"
+            "  Try: 'find bid opportunities for commercial HVAC'\n\n"
+            "**Computer Control** *(requires approval)* — Screenshots, clicks, typing, open apps\n"
+            "  Try: 'take a screenshot' or 'open the calculator'\n\n"
+            "**Email Composition** *(requires approval)* — Draft and prepare emails\n"
+            "  Try: 'compose email to vendor about pricing'\n\n"
+            "Just type naturally and I'll use the right tool!"
+        )
     return "Unknown action."
 
 
@@ -657,12 +684,20 @@ function cancel(actionId, btnContainer) {
   btnContainer.innerHTML = '<span style="color:#888;">Cancelled.</span>';
 }
 
+function formatMsg(text) {
+  let s = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  s = s.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#7ea8d9;">$1</a>');
+  s = s.replace(/\n/g, '<br>');
+  return s;
+}
 function addMsg(text, role) {
   const d = document.createElement('div');
   d.className = 'msg ' + role;
   const b = document.createElement('div');
   b.className = 'bubble';
-  b.textContent = text;
+  b.innerHTML = formatMsg(text);
   d.appendChild(b);
   chat.appendChild(d);
   chat.scrollTop = chat.scrollHeight;
