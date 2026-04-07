@@ -663,11 +663,13 @@ async function send() {
       headers: {'Content-Type': 'application/json', 'X-Session-ID': SESSION_ID},
       body: JSON.stringify({message: msg})
     });
-    const data = await r.json();
+        const data = await parseJsonResponse(r);
     removeThinking(thinkingId);
 
     if (data.approval_required) {
       addApprovalMsg(data.response, data.action_id, data.action_description);
+        } else if (data.error) {
+            addMsg('Server error: ' + data.error, 'bot');
     } else {
       addMsg(data.response || 'No response.', 'bot');
     }
@@ -687,11 +689,27 @@ async function approve(actionId, btnContainer) {
       headers: {'Content-Type': 'application/json', 'X-Session-ID': SESSION_ID},
       body: JSON.stringify({action_id: actionId})
     });
-    const data = await r.json();
-    addMsg(data.response || 'Action completed.', 'bot');
+        const data = await parseJsonResponse(r);
+        if (data.error) {
+            addMsg('Action failed: ' + data.error, 'bot');
+            return;
+        }
+        addMsg(data.response || 'Action completed.', 'bot');
   } catch(e) {
     addMsg('Action failed: ' + e.message, 'bot');
   }
+}
+
+async function parseJsonResponse(response) {
+    const text = await response.text();
+    if (!text) {
+        return { error: `Empty response from server (${response.status})` };
+    }
+    try {
+        return JSON.parse(text);
+    } catch (_) {
+        return { error: `Non-JSON server response (${response.status}): ${text.slice(0, 200)}` };
+    }
 }
 
 function cancel(actionId, btnContainer) {
@@ -789,38 +807,51 @@ class ChatHandler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(HTML.encode())
 
     def do_POST(self):
-        length = int(self.headers.get("Content-Length", 0))
-        if length > 65536:
-            self._json_response(413, {"error": "Request too large"})
-            return
-
-        body = json.loads(self.rfile.read(length)) if length else {}
-        session_id = self.headers.get("X-Session-ID", "default")
-
-        if self.path == "/chat":
-            message = str(body.get("message", ""))[:4096]
-            if not message:
-                self._json_response(400, {"error": "Empty message"})
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            if length > 65536:
+                self._json_response(413, {"error": "Request too large"})
                 return
-            result = handle_chat(session_id, message)
-            self._json_response(200, result)
 
-        elif self.path == "/approve":
-            action_id = str(body.get("action_id", ""))
-            if not action_id:
-                self._json_response(400, {"error": "Missing action_id"})
+            raw = self.rfile.read(length) if length else b"{}"
+            try:
+                body = json.loads(raw)
+            except json.JSONDecodeError:
+                self._json_response(400, {"error": "Invalid JSON body"})
                 return
-            result = handle_approve(action_id)
-            self._json_response(200, result)
 
-        else:
-            self._json_response(404, {"error": "Not found"})
+            session_id = self.headers.get("X-Session-ID", "default")
+
+            if self.path == "/chat":
+                message = str(body.get("message", ""))[:4096]
+                if not message:
+                    self._json_response(400, {"error": "Empty message"})
+                    return
+                result = handle_chat(session_id, message)
+                self._json_response(200, result)
+
+            elif self.path == "/approve":
+                action_id = str(body.get("action_id", ""))
+                if not action_id:
+                    self._json_response(400, {"error": "Missing action_id"})
+                    return
+                result = handle_approve(action_id)
+                self._json_response(200, result)
+
+            else:
+                self._json_response(404, {"error": "Not found"})
+        except Exception as exc:
+            logger.exception("Unhandled POST error: %s", exc)
+            self._json_response(500, {"error": "Internal server error"})
 
     def _json_response(self, status: int, data: dict):
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.end_headers()
-        self.wfile.write(json.dumps(data).encode())
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(data).encode())
+        except BrokenPipeError:
+            logger.warning("Client disconnected before response was written")
 
     def log_message(self, fmt, *args):
         logger.debug(fmt, *args)
